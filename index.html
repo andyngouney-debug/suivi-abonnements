@@ -202,7 +202,10 @@ async function initAuth(){
 }
 
 async function sendMagicLink(email){
-  const { error } = await sb.auth.signInWithOtp({ email });
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.href }
+  });
   return error;
 }
 
