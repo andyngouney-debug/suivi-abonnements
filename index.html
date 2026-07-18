@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subscription Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
+  :root {
+    --paper:#F2EFE9; --ink:#14231F; --green:#1F6F50; --gold:#A6813C; --rust:#C1544A; --line:#C9C2B3;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  .display { font-family: 'Fraunces', serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+  .nav { border-bottom: 1px solid var(--line); }
+  .nav-inner { max-width:720px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; }
+  .tab { background:none; border:none; font-family:'IBM Plex Mono',monospace; font-size:14px; padding:14px 0; margin-right:24px; cursor:pointer; color:#8A8578; border-bottom:2px solid transparent; }
+  .tab.active { color:var(--ink); font-weight:600; border-bottom:2px solid var(--green); }
+  .langBtn { background:none; border:none; font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer; color:#8A8578; padding:4px 6px; }
+  .langBtn.active { color:var(--ink); font-weight:600; text-decoration:underline; }
+  h1 { font-family:'Fraunces',serif; font-weight:600; font-size:32px; margin:4px 0; }
+  .kicker { font-size:12px; letter-spacing:0.15em; color:var(--green); }
+  .tagline { font-size:14px; color:#5C5747; font-style:italic; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:24px 0; }
+  .card { background:white; border:1px solid var(--line); padding:10px; }
+  .card.green { border-left:3px solid var(--green); }
+  .card.gold { border-left:3px solid var(--gold); }
+  .card.ink { border-left:3px solid var(--ink); }
+  .card-label { font-size:11px; text-transform:uppercase; color:#5C5747; }
+  .card-val { font-size:20px; font-weight:600; margin-top:4px; }
+  .dashed { border:1px dashed var(--line); padding:12px; margin-bottom:16px; font-size:14px; color:#5C5747; }
+  .alert { background:rgba(193,84,74,0.08); border:1px solid var(--rust); padding:12px; margin-bottom:16px; font-size:14px; color:var(--rust); }
+  .success { background:rgba(31,111,80,0.08); border:1px solid var(--green); padding:10px; margin-bottom:16px; font-size:14px; color:var(--green); }
+  .filter-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; }
+  select, input[type=text], input[type=number], input[type=date], input[type=email] {
+    font-family:'IBM Plex Mono',monospace; border:1px solid var(--line); padding:6px 8px; background:white;
+  }
+  .item { display:flex; align-items:baseline; padding:12px 0; border-bottom:1px solid var(--line); gap:8px; flex-wrap:wrap; }
+  .item-name { font-family:sans-serif; font-size:16px; font-weight:500; }
+  .item-meta { font-size:12px; color:#8A8578; display:block; }
+  .dots { flex:1; border-bottom:1px dotted var(--line); margin:0 8px; min-width:20px; }
+  .badge { font-size:11px; padding:2px 6px; border:1px solid #8A8578; color:#8A8578; }
+  .badge.urgent { border-color:var(--rust); color:var(--rust); }
+  .badge.soon { border-color:var(--gold); color:var(--gold); }
+  .price { font-size:16px; font-weight:600; }
+  button.icon { background:none; border:none; cursor:pointer; padding:6px; color:#5C5747; font-size:16px; }
+  .primary-btn { background:var(--ink); color:var(--paper); border:none; padding:10px 16px; font-family:'IBM Plex Mono',monospace; font-size:14px; cursor:pointer; }
+  .ghost-btn { background:none; border:1px solid var(--line); padding:10px 16px; font-family:'IBM Plex Mono',monospace; font-size:14px; cursor:pointer; color:var(--ink); }
+  form.panel { border:1px solid var(--ink); padding:20px; margin-top:8px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:11px; text-transform:uppercase; color:#5C5747; margin-bottom:4px; }
+  .field input, .field select { width:100%; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .totalline { display:flex; justify-content:space-between; align-items:baseline; border-top:2px solid var(--ink); border-bottom:2px solid var(--ink); padding:12px 0; margin:16px 0; font-size:18px; font-weight:600; }
+  .empty { text-align:center; padding:40px 10px; border:1px dashed var(--line); color:#8A8578; font-size:14px; }
+  .plans { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px; }
+  .plan { border:1px solid var(--line); padding:20px; }
+  .plan.highlight { border:2px solid var(--green); }
+  .plan-price { font-size:28px; font-weight:600; margin:8px 0 16px; }
+  .plan ul { list-style:none; padding:0; margin:0 0 16px; font-family:sans-serif; font-size:14px; }
+  .plan li { margin-bottom:8px; }
+  .center-form { max-width:360px; margin:0 auto; }
+  .error { color:var(--rust); font-size:14px; margin-bottom:10px; }
+  .checkbox-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-inner" style="display:flex; align-items:center; justify-content:space-between; padding:4px 20px;">
+    <div>
+      <button class="tab active" data-tab="home" onclick="switchTab('home')">Home</button>
+      <button class="tab" data-tab="account" onclick="switchTab('account')">Account</button>
+      <button class="tab" data-tab="price" onclick="switchTab('price')">Pricing</button>
+    </div>
+    <div>
+      <button class="langBtn" data-lang="fr" onclick="setLang('fr')">FR</button>/<button class="langBtn active" data-lang="en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="page-home"></div>
+<div class="wrap" id="page-account" style="display:none;"></div>
+<div class="wrap" id="page-price" style="display:none;"></div>
+
+<script>
+// ====== CONFIG ======
+const SUPABASE_URL = "https://zryssdrxfbsxanouxsca.supabase.co";
+const SUPABASE_KEY = "sb_publishable_OngQj8wqqHTTx4Vw54lN4w_w-jupoSq";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ====== TRANSLATIONS ======
+const STR = {
+  en: {
+    kicker:"FINANCIAL TRACKER", dashboard:"Dashboard",
+    tagline:"Don't just track your subscriptions. Understand them, optimize them, and save money.",
+    youHave:"You have", activeSubs:"active subscription(s)", nextToday:"A payment is due today.", nextIn:"Next payment in", days:"day(s)",
+    monthlyCost:"Monthly cost", yearlyProjection:"Yearly projection", subsCount:"Subscriptions", active:"active",
+    topCat:"Top spending category", perMonth:"/mo", perYear:"/year", deductibleTotal:"Deductible expenses (estimate)",
+    alertOne:(n,d,a)=>`${n} will be charged ${d<=0?"today":`in ${d} day(s)`} — amount: ${a}.`,
+    alertMany:(c,a)=>`${c} subscriptions are coming up for renewal soon, for a total of ${a}.`,
+    filter:"Filter", allCats:"All categories", exportCsv:"Export as CSV",
+    empty:"Welcome! Add your first subscription to start tracking your expenses.",
+    emptyFiltered:"No subscriptions in this category.",
+    addSub:"Add a subscription", newSub:"New subscription", editSub:"Edit subscription",
+    name:"Name", namePh:"Netflix, Gym membership…", price:"Price (CAD $)", frequency:"Frequency", category:"Category",
+    nextDate:"Next charge date", deductible:"Tax-deductible", save:"Save", update:"Update", cancel:"Cancel",
+    fillAll:"Please fill in all fields.", opening:"Opening ledger…",
+    accountTitle:"My Account", loginPrompt:"Enter your email to receive a magic sign-in link.",
+    email:"Email", emailPh:"you@example.com", sendLink:"Send magic link", checkEmail:"Check your email for the sign-in link!",
+    logout:"Log out", loading:"Loading…", hello:"Hello",
+    pricingTitle:"Pricing", free:"Free", premium:"Premium",
+    freeFeat:["Unlimited subscription tracking","Adaptive alerts","Monthly & yearly totals","Accounting CSV export"],
+    premFeat:["Everything in Free","12-month chart","Unlimited categories"],
+    comingSoon:"Coming soon", currentPlanBtn:"Current plan",
+    cycles:{monthly:"monthly",yearly:"yearly",weekly:"weekly"},
+    cats:{software:"Software & SaaS",hosting:"Hosting & Infrastructure",marketing:"Marketing",hardware:"Hardware",other:"Other"},
+    confirm:"Confirm", delete:"Delete", edit:"Edit", added:"Subscription added ✓", updated:"Subscription updated ✓",
+  },
+  fr: {
+    kicker:"SUIVI FINANCIER", dashboard:"Tableau de bord",
+    tagline:"Ne suivez pas seulement vos abonnements. Comprenez-les, optimisez-les et économisez de l'argent.",
+    youHave:"Vous avez", activeSubs:"abonnement(s) actif(s)", nextToday:"Un paiement tombe aujourd'hui.", nextIn:"Prochain paiement dans", days:"jour(s)",
+    monthlyCost:"Coût mensuel", yearlyProjection:"Projection annuelle", subsCount:"Abonnements", active:"actif(s)",
+    topCat:"Catégorie la plus coûteuse", perMonth:"/mois", perYear:"/an", deductibleTotal:"Charges déductibles (estimation)",
+    alertOne:(n,d,a)=>`${n} sera prélevé ${d<=0?"aujourd'hui":`dans ${d} jour(s)`} — montant : ${a}.`,
+    alertMany:(c,a)=>`${c} abonnements arrivent à échéance bientôt, pour un total de ${a}.`,
+    filter:"Filtrer", allCats:"Toutes les catégories", exportCsv:"Exporter en CSV",
+    empty:"Bienvenue ! Ajoutez votre premier abonnement pour commencer à suivre vos dépenses.",
+    emptyFiltered:"Aucun abonnement dans cette catégorie.",
+    addSub:"Ajouter un abonnement", newSub:"Nouvel abonnement", editSub:"Modifier l'abonnement",
+    name:"Nom", namePh:"Netflix, Salle de sport…", price:"Prix ($ CA)", frequency:"Fréquence", category:"Catégorie",
+    nextDate:"Prochain prélèvement", deductible:"Déductible des charges", save:"Enregistrer", update:"Mettre à jour", cancel:"Annuler",
+    fillAll:"Remplis tous les champs.", opening:"Ouverture du registre…",
+    accountTitle:"Mon compte", loginPrompt:"Entre ton email pour recevoir un lien de connexion magique.",
+    email:"Email", emailPh:"toi@exemple.com", sendLink:"Envoyer le lien magique", checkEmail:"Vérifie ta boîte mail pour le lien de connexion !",
+    logout:"Se déconnecter", loading:"Chargement…", hello:"Bonjour",
+    pricingTitle:"Tarifs", free:"Gratuit", premium:"Premium",
+    freeFeat:["Suivi illimité des abonnements","Alertes adaptatives","Totaux mensuel & annuel","Export CSV comptable"],
+    premFeat:["Tout le plan Gratuit","Graphique 12 mois","Catégories illimitées"],
+    comingSoon:"Bientôt disponible", currentPlanBtn:"Plan actuel",
+    cycles:{monthly:"mensuel",yearly:"annuel",weekly:"hebdomadaire"},
+    cats:{software:"Logiciel & SaaS",hosting:"Hébergement & Infrastructure",marketing:"Marketing",hardware:"Matériel",other:"Autre"},
+    confirm:"Confirmer", delete:"Supprimer", edit:"Modifier", added:"Abonnement ajouté ✓", updated:"Abonnement mis à jour ✓",
+  }
+};
+const CYCLE_KEYS = ["monthly","yearly","weekly"];
+const CYCLE_MONTHS = {monthly:1, yearly:12, weekly:0.23};
+const CAT_KEYS = ["software","hosting","marketing","hardware","other"];
+
+let lang = "en";
+let currentUser = null;
+let subs = [];
+let categoryFilter = "all";
+let editingId = null;
+let confirmDeleteId = null;
+let successMsg = "";
+
+function t(){ return STR[lang]; }
+function monthlyCost(s){ return s.price / CYCLE_MONTHS[s.cycle]; }
+function alertThreshold(cycle){ return cycle === "yearly" ? 30 : 7; }
+function fmtMoney(n){ return n.toLocaleString(lang==="en"?"en-CA":"fr-CA",{minimumFractionDigits:2,maximumFractionDigits:2}) + " $"; }
+function daysUntil(dateStr){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const target = new Date(y, m-1, d);
+  return Math.round((target - today) / 86400000);
+}
+function nextOccurrence(dateStr, cycle){
+  const [y,m,d] = dateStr.split("-").map(Number);
+  let dt = new Date(y, m-1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const step = cycle === "yearly" ? 12 : cycle === "monthly" ? 1 : null;
+  if (step) { while (dt < today) dt.setMonth(dt.getMonth()+step); }
+  else { while (dt < today) dt.setDate(dt.getDate()+7); }
+  return dt;
+}
+
+function switchTab(tab){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  ["home","account","price"].forEach(p=>{
+    document.getElementById("page-"+p).style.display = (p===tab) ? "block" : "none";
+  });
+}
+function setLang(l){
+  lang = l;
+  document.querySelectorAll(".langBtn").forEach(b=>b.classList.toggle("active", b.dataset.lang===l));
+  renderAll();
+}
+
+// ====== AUTH ======
+async function initAuth(){
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session ? session.user : null;
+  sb.auth.onAuthStateChange((_event, session) => {
+    currentUser = session ? session.user : null;
+    loadSubs();
+  });
+  await loadSubs();
+}
+
+async function sendMagicLink(email){
+  const { error } = await sb.auth.signInWithOtp({ email });
+  return error;
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  subs = [];
+  renderAll();
+}
+
+// ====== DATA ======
+async function loadSubs(){
+  if (!currentUser) { subs = []; renderAll(); return; }
+  const { data, error } = await sb.from("subscriptions").select("*").order("next_date", { ascending: true });
+  subs = error ? [] : data;
+  renderAll();
+}
+
+async function addOrUpdateSub(sub){
+  if (!currentUser) return;
+  if (editingId) {
+    await sb.from("subscriptions").update({
+      name: sub.name, price: sub.price, cycle: sub.cycle, category: sub.category,
+      next_date: sub.nextDate, deductible: sub.deductible
+    }).eq("id", editingId);
+    successMsg = t().updated;
+  } else {
+    await sb.from("subscriptions").insert({
+      user_id: currentUser.id, name: sub.name, price: sub.price, cycle: sub.cycle,
+      category: sub.category, next_date: sub.nextDate, deductible: sub.deductible
+    });
+    successMsg = t().added;
+  }
+  editingId = null;
+  await loadSubs();
+  setTimeout(()=>{ successMsg=""; renderHome(); }, 3000);
+}
+
+async function deleteSub(id){
+  await sb.from("subscriptions").delete().eq("id", id);
+  confirmDeleteId = null;
+  await loadSubs();
+}
+
+function exportCsv(){
+  const header = "Name,Price,Cycle,Category,NextDate,Deductible\n";
+  const rows = subs.map(s => [s.name, s.price, s.cycle, t().cats[s.category||"other"], s.next_date, s.deductible?"Yes":"No"].join(",")).join("\n");
+  const blob = new Blob([header+rows], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "subscriptions.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ====== RENDER ======
+function renderAll(){ renderHome(); renderAccount(); renderPrice(); }
+
+function renderHome(){
+  const T = t();
+  const el = document.getElementById("page-home");
+  if (!currentUser) {
+    el.innerHTML = `<div class="kicker">${T.kicker}</div><h1>${T.dashboard}</h1>
+      <p class="tagline">${T.tagline}</p>
+      <div class="dashed">${lang==="en"?"Log in from the Account tab to start tracking your subscriptions.":"Connecte-toi depuis l'onglet Account pour commencer à suivre tes abonnements."}</div>`;
+    return;
+  }
+
+  const enriched = subs.map(s => {
+    const nextOcc = nextOccurrence(s.next_date, s.cycle);
+    return { ...s, nextOcc, days: daysUntil(nextOcc.toISOString().slice(0,10)) };
+  }).sort((a,b)=>a.days-b.days);
+
+  const totalMonthly = subs.reduce((sum,s)=>sum+monthlyCost(s),0);
+  const totalYearly = totalMonthly*12;
+  const dueSoon = enriched.filter(s => s.days <= alertThreshold(s.cycle));
+  const deductibleTotal = subs.filter(s=>s.deductible).reduce((sum,s)=>sum+monthlyCost(s)*12,0);
+
+  const byCategory = {};
+  subs.forEach(s => { const c=s.category||"other"; byCategory[c]=(byCategory[c]||0)+monthlyCost(s); });
+  const topCatEntry = Object.entries(byCategory).sort((a,b)=>b[1]-a[1])[0];
+
+  const visible = enriched.filter(s => categoryFilter==="all" || (s.category||"other")===categoryFilter);
+
+  let html = `<div class="kicker">${currentUser.email ? T.hello+", "+currentUser.email.split("@")[0]+" 👋" : T.kicker}</div><h1>${T.dashboard}</h1>`;
+
+  if (successMsg) html += `<div class="success">${successMsg}</div>`;
+
+  if (enriched.length===0) {
+    html += `<p class="tagline">${T.tagline}</p>`;
+  } else {
+    html += `<p style="font-size:14px;color:#5C5747;">${T.youHave} <strong style="color:var(--ink)">${enriched.length} ${T.activeSubs}</strong>. ${enriched[0].days<=0?T.nextToday:`${T.nextIn} ${enriched[0].days} ${T.days}.`}</p>`;
+  }
+
+  html += `<div class="grid3">
+    <div class="card green"><div class="card-label">${T.monthlyCost}</div><div class="card-val" style="color:var(--green)">${fmtMoney(totalMonthly)}</div></div>
+    <div class="card gold"><div class="card-label">${T.yearlyProjection}</div><div class="card-val" style="color:var(--gold)">${fmtMoney(totalYearly)}</div></div>
+    <div class="card ink"><div class="card-label">${T.subsCount}</div><div class="card-val">${subs.length} ${T.active}</div></div>
+  </div>`;
+
+  if (topCatEntry) html += `<div class="dashed">${T.topCat}: <strong>${T.cats[topCatEntry[0]]}</strong> (${fmtMoney(topCatEntry[1])}${T.perMonth})</div>`;
+  if (deductibleTotal>0) html += `<div class="dashed" style="border-color:var(--gold);">${T.deductibleTotal}: <strong style="color:var(--gold)">${fmtMoney(deductibleTotal)}</strong>${T.perYear}</div>`;
+
+  if (dueSoon.length>0) {
+    const msg = dueSoon.length===1
+      ? T.alertOne(dueSoon[0].name, dueSoon[0].days, fmtMoney(dueSoon[0].price))
+      : T.alertMany(dueSoon.length, fmtMoney(dueSoon.reduce((s,d)=>s+d.price,0)));
+    html += `<div class="alert">⚠️ ${msg}</div>`;
+  }
+
+  html += `<div class="filter-row">
+    <div>${T.filter}: <select onchange="categoryFilter=this.value; renderHome();">
+      <option value="all" ${categoryFilter==="all"?"selected":""}>${T.allCats}</option>
+      ${CAT_KEYS.map(c=>`<option value="${c}" ${categoryFilter===c?"selected":""}>${T.cats[c]}</option>`).join("")}
+    </select></div>
+    ${subs.length>0 ? `<button class="ghost-btn" onclick="exportCsv()">${T.exportCsv}</button>` : ""}
+  </div>`;
+
+  if (enriched.length===0) {
+    html += `<div class="empty">${T.empty}</div>`;
+  } else if (visible.length===0) {
+    html += `<div class="empty">${T.emptyFiltered}</div>`;
+  } else {
+    visible.forEach(s=>{
+      const urgent = s.days<=3, soon = s.days<=7 && s.days>3;
+      const badgeClass = urgent?"urgent":soon?"soon":"";
+      const badgeText = s.days<=0 ? (lang==="en"?"today":"aujourd'hui") : `J-${s.days}`;
+      html += `<div class="item">
+        <div>
+          <span class="item-name">${s.name}</span>
+          <span class="item-meta">${T.cycles[s.cycle]} · ${T.cats[s.category||"other"]} · ${s.nextOcc.toLocaleDateString(lang==="en"?"en-CA":"fr-CA")}${s.deductible?` · <span style="color:var(--gold)">Ded.</span>`:""}</span>
+        </div>
+        <div class="dots"></div>
+        <span class="badge ${badgeClass}">${badgeText}</span>
+        <span class="price">${fmtMoney(s.price)}</span>
+        <button class="icon" onclick="openEditForm('${s.id}')">✏️</button>
+        ${confirmDeleteId===s.id
+          ? `<button class="ghost-btn" style="background:var(--rust);color:white;border:none;" onclick="deleteSub('${s.id}')">${T.confirm}</button><button class="ghost-btn" onclick="confirmDeleteId=null; renderHome();">${T.cancel}</button>`
+          : `<button class="icon" onclick="confirmDeleteId='${s.id}'; renderHome();">🗑️</button>`}
+      </div>`;
+    });
+  }
+
+  if (enriched.length>0) {
+    html += `<div class="totalline"><span>${T.monthlyCost}</span><span>${fmtMoney(totalMonthly)}</span></div>`;
+  }
+
+  html += `<div id="formZone"></div>`;
+  el.innerHTML = html;
+  renderForm();
+}
+
+function renderForm(){
+  const T = t();
+  const zone = document.getElementById("formZone");
+  if (!zone) return;
+  const editing = subs.find(s=>s.id===editingId);
+  if (!window.__showForm && !editing) {
+    zone.innerHTML = `<button class="primary-btn" onclick="window.__showForm=true; renderHome();">+ ${T.addSub}</button>`;
+    return;
+  }
+  const f = editing ? { name:editing.name, price:editing.price, cycle:editing.cycle, category:editing.category||"software", nextDate:editing.next_date, deductible:!!editing.deductible } : (window.__formDraft || {name:"",price:"",cycle:"monthly",category:"software",nextDate:"",deductible:false});
+  window.__formDraft = f;
+  zone.innerHTML = `<form class="panel" onsubmit="return submitForm(event)">
+    <div style="color:var(--green); font-size:12px; text-transform:uppercase; margin-bottom:12px;">${editing?T.editSub:T.newSub}</div>
+    <div id="formError" class="error"></div>
+    <div class="field"><label>${T.name}</label><input type="text" id="f-name" value="${f.name}" placeholder="${T.namePh}"></div>
+    <div class="row2">
+      <div class="field"><label>${T.price}</label><input type="number" step="0.01" id="f-price" value="${f.price}"></div>
+      <div class="field"><label>${T.frequency}</label><select id="f-cycle">${CYCLE_KEYS.map(c=>`<option value="${c}" ${f.cycle===c?"selected":""}>${T.cycles[c]}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label>${T.category}</label><select id="f-category">${CAT_KEYS.map(c=>`<option value="${c}" ${f.category===c?"selected":""}>${T.cats[c]}</option>`).join("")}</select></div>
+    <div class="field"><label>${T.nextDate}</label><input type="date" id="f-date" value="${f.nextDate}"></div>
+    <div class="checkbox-row"><input type="checkbox" id="f-deductible" ${f.deductible?"checked":""}><label style="margin:0;">${T.deductible}</label></div>
+    <button type="submit" class="primary-btn">${editing?T.update:T.save}</button>
+    <button type="button" class="ghost-btn" onclick="cancelForm()">${T.cancel}</button>
+  </form>`;
+}
+
+function openEditForm(id){ editingId = id; window.__showForm = true; renderHome(); }
+function cancelForm(){ editingId=null; window.__showForm=false; window.__formDraft=null; renderHome(); }
+
+async function submitForm(e){
+  e.preventDefault();
+  const T = t();
+  const name = document.getElementById("f-name").value.trim();
+  const price = parseFloat(document.getElementById("f-price").value);
+  const cycle = document.getElementById("f-cycle").value;
+  const category = document.getElementById("f-category").value;
+  const nextDate = document.getElementById("f-date").value;
+  const deductible = document.getElementById("f-deductible").checked;
+  if (!name || !price || !nextDate) {
+    document.getElementById("formError").innerText = T.fillAll;
+    return false;
+  }
+  await addOrUpdateSub({ name, price, cycle, category, nextDate, deductible });
+  window.__showForm = false;
+  window.__formDraft = null;
+  return false;
+}
+
+function renderAccount(){
+  const T = t();
+  const el = document.getElementById("page-account");
+  el.innerHTML = `<div class="kicker">${T.kicker}</div><h1>${T.accountTitle}</h1>`;
+  if (!currentUser) {
+    el.innerHTML += `<div class="center-form panel">
+      <p style="font-size:14px;color:#5C5747;">${T.loginPrompt}</p>
+      <div id="acctMsg"></div>
+      <div class="field"><label>${T.email}</label><input type="email" id="acct-email" placeholder="${T.emailPh}"></div>
+      <button class="primary-btn" onclick="doMagicLink()">${T.sendLink}</button>
+    </div>`;
+  } else {
+    el.innerHTML += `<div class="panel">
+      <p><strong>${currentUser.email}</strong></p>
+      <button class="ghost-btn" onclick="logout()">${T.logout}</button>
+    </div>`;
+  }
+}
+
+async function doMagicLink(){
+  const T = t();
+  const email = document.getElementById("acct-email").value.trim();
+  if (!email) return;
+  const error = await sendMagicLink(email);
+  document.getElementById("acctMsg").innerHTML = error
+    ? `<div class="error">${error.message}</div>`
+    : `<div class="success">${T.checkEmail}</div>`;
+}
+
+function renderPrice(){
+  const T = t();
+  const el = document.getElementById("page-price");
+  el.innerHTML = `<div class="kicker">${T.kicker}</div><h1>${T.pricingTitle}</h1>
+  <div class="plans">
+    <div class="plan">
+      <div style="font-size:12px;text-transform:uppercase;color:#5C5747;">${T.free}</div>
+      <div class="plan-price">0$<span style="font-size:13px;color:#8A8578;">${T.perMonth}</span></div>
+      <ul>${T.freeFeat.map(f=>`<li>✓ ${f}</li>`).join("")}</ul>
+      <button class="ghost-btn" style="width:100%;">${T.currentPlanBtn}</button>
+    </div>
+    <div class="plan highlight">
+      <div style="font-size:12px;text-transform:uppercase;color:var(--green);">${T.premium}</div>
+      <div class="plan-price">6,99$<span style="font-size:13px;color:#8A8578;">${T.perMonth}</span></div>
+      <ul>${T.premFeat.map(f=>`<li>✓ ${f}</li>`).join("")}</ul>
+      <button class="ghost-btn" style="width:100%; color:#8A8578; cursor:not-allowed;" disabled>${T.comingSoon}</button>
+    </div>
+  </div>`;
+}
+
+initAuth();
+</script>
+</body>
+</html>
