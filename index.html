@@ -110,7 +110,8 @@ const STR = {
     nextDate:"Next charge date", deductible:"Tax-deductible", save:"Save", update:"Update", cancel:"Cancel",
     fillAll:"Please fill in all fields.", opening:"Opening ledger…",
     accountTitle:"My Account", loginPrompt:"Enter your email to receive a magic sign-in link.",
-    email:"Email", emailPh:"you@example.com", sendLink:"Send magic link", checkEmail:"Check your email for the sign-in link!",
+    email:"Email", emailPh:"you@example.com", sendLink:"Send code", checkEmail:"Check your email for the sign-in link!",
+    enterCode:"Enter the 6-digit code sent to", code:"Verification code", verify:"Verify",
     logout:"Log out", loading:"Loading…", hello:"Hello",
     pricingTitle:"Pricing", free:"Free", premium:"Premium",
     freeFeat:["Unlimited subscription tracking","Adaptive alerts","Monthly & yearly totals","Accounting CSV export"],
@@ -136,7 +137,8 @@ const STR = {
     nextDate:"Prochain prélèvement", deductible:"Déductible des charges", save:"Enregistrer", update:"Mettre à jour", cancel:"Annuler",
     fillAll:"Remplis tous les champs.", opening:"Ouverture du registre…",
     accountTitle:"Mon compte", loginPrompt:"Entre ton email pour recevoir un lien de connexion magique.",
-    email:"Email", emailPh:"toi@exemple.com", sendLink:"Envoyer le lien magique", checkEmail:"Vérifie ta boîte mail pour le lien de connexion !",
+    email:"Email", emailPh:"toi@exemple.com", sendLink:"Envoyer le code", checkEmail:"Vérifie ta boîte mail pour le lien de connexion !",
+    enterCode:"Entre le code à 6 chiffres envoyé à", code:"Code de vérification", verify:"Vérifier",
     logout:"Se déconnecter", loading:"Chargement…", hello:"Bonjour",
     pricingTitle:"Tarifs", free:"Gratuit", premium:"Premium",
     freeFeat:["Suivi illimité des abonnements","Alertes adaptatives","Totaux mensuel & annuel","Export CSV comptable"],
@@ -203,10 +205,12 @@ async function initAuth(){
 }
 
 async function sendMagicLink(email){
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.href }
-  });
+  const { error } = await sb.auth.signInWithOtp({ email });
+  return error;
+}
+
+async function verifyCode(email, token){
+  const { error } = await sb.auth.verifyOtp({ email, token, type: "email" });
   return error;
 }
 
@@ -406,17 +410,29 @@ async function submitForm(e){
   return false;
 }
 
+let __codeSentTo = null;
+
 function renderAccount(){
   const T = t();
   const el = document.getElementById("page-account");
   el.innerHTML = `<div class="kicker">${T.kicker}</div><h1>${T.accountTitle}</h1>`;
   if (!currentUser) {
-    el.innerHTML += `<div class="center-form panel">
-      <p style="font-size:14px;color:#5C5747;">${T.loginPrompt}</p>
-      <div id="acctMsg"></div>
-      <div class="field"><label>${T.email}</label><input type="email" id="acct-email" placeholder="${T.emailPh}"></div>
-      <button class="primary-btn" onclick="doMagicLink()">${T.sendLink}</button>
-    </div>`;
+    if (!__codeSentTo) {
+      el.innerHTML += `<div class="center-form panel">
+        <p style="font-size:14px;color:#5C5747;">${T.loginPrompt}</p>
+        <div id="acctMsg"></div>
+        <div class="field"><label>${T.email}</label><input type="email" id="acct-email" placeholder="${T.emailPh}"></div>
+        <button class="primary-btn" onclick="doMagicLink()">${T.sendLink}</button>
+      </div>`;
+    } else {
+      el.innerHTML += `<div class="center-form panel">
+        <p style="font-size:14px;color:#5C5747;">${T.enterCode} <strong>${__codeSentTo}</strong>.</p>
+        <div id="acctMsg"></div>
+        <div class="field"><label>${T.code}</label><input type="text" id="acct-code" placeholder="123456" inputmode="numeric" maxlength="6"></div>
+        <button class="primary-btn" onclick="doVerifyCode()">${T.verify}</button>
+        <button class="ghost-btn" onclick="__codeSentTo=null; renderAccount();">${T.cancel}</button>
+      </div>`;
+    }
   } else {
     el.innerHTML += `<div class="panel">
       <p><strong>${currentUser.email}</strong></p>
@@ -430,9 +446,25 @@ async function doMagicLink(){
   const email = document.getElementById("acct-email").value.trim();
   if (!email) return;
   const error = await sendMagicLink(email);
-  document.getElementById("acctMsg").innerHTML = error
-    ? `<div class="error">${error.message}</div>`
-    : `<div class="success">${T.checkEmail}</div>`;
+  if (error) {
+    document.getElementById("acctMsg").innerHTML = `<div class="error">${error.message}</div>`;
+  } else {
+    __codeSentTo = email;
+    renderAccount();
+  }
+}
+
+async function doVerifyCode(){
+  const T = t();
+  const code = document.getElementById("acct-code").value.trim();
+  if (!code) return;
+  const error = await verifyCode(__codeSentTo, code);
+  if (error) {
+    document.getElementById("acctMsg").innerHTML = `<div class="error">${error.message}</div>`;
+  } else {
+    __codeSentTo = null;
+    await loadSubs();
+  }
 }
 
 function renderPrice(){
