@@ -428,7 +428,7 @@ function renderAccount(){
       el.innerHTML += `<div class="center-form panel">
         <p style="font-size:14px;color:#5C5747;">${T.enterCode} <strong>${__codeSentTo}</strong>.</p>
         <div id="acctMsg"></div>
-        <div class="field"><label>${T.code}</label><input type="text" id="acct-code" placeholder="123456" inputmode="numeric" maxlength="6"></div>
+        <div class="field"><label>${T.code}</label><input type="text" id="acct-code" placeholder="12345678" inputmode="numeric" maxlength="10"></div>
         <button class="primary-btn" onclick="doVerifyCode()">${T.verify}</button>
         <button class="ghost-btn" onclick="__codeSentTo=null; renderAccount();">${T.cancel}</button>
       </div>`;
