@@ -117,7 +117,7 @@ const STR = {
     pricingTitle:"Pricing", free:"Free", premium:"Premium",
     freeFeat:["Unlimited subscription tracking","Adaptive alerts","Monthly & yearly totals","Accounting CSV export"],
     premFeat:["Everything in Free","12-month chart","Unlimited categories"],
-    comingSoon:"Coming soon", currentPlanBtn:"Current plan",
+    comingSoon:"Coming soon", currentPlanBtn:"Current plan", goPremium:"Upgrade to Premium",
     cycles:{monthly:"monthly",yearly:"yearly",weekly:"weekly"},
     cats:{software:"Software & SaaS",hosting:"Hosting & Infrastructure",marketing:"Marketing",hardware:"Hardware",other:"Other"},
     confirm:"Confirm", delete:"Delete", edit:"Edit", added:"Subscription added ✓", updated:"Subscription updated ✓",
@@ -144,7 +144,7 @@ const STR = {
     pricingTitle:"Tarifs", free:"Gratuit", premium:"Premium",
     freeFeat:["Suivi illimité des abonnements","Alertes adaptatives","Totaux mensuel & annuel","Export CSV comptable"],
     premFeat:["Tout le plan Gratuit","Graphique 12 mois","Catégories illimitées"],
-    comingSoon:"Bientôt disponible", currentPlanBtn:"Plan actuel",
+    comingSoon:"Bientôt disponible", currentPlanBtn:"Plan actuel", goPremium:"Passer au Premium",
     cycles:{monthly:"mensuel",yearly:"annuel",weekly:"hebdomadaire"},
     cats:{software:"Logiciel & SaaS",hosting:"Hébergement & Infrastructure",marketing:"Marketing",hardware:"Matériel",other:"Autre"},
     confirm:"Confirmer", delete:"Supprimer", edit:"Modifier", added:"Abonnement ajouté ✓", updated:"Abonnement mis à jour ✓",
@@ -468,9 +468,14 @@ async function doVerifyCode(){
   }
 }
 
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_6oU28q0YZ0ZWeOHg9i5gc00";
+
 function renderPrice(){
   const T = t();
   const el = document.getElementById("page-price");
+  const payUrl = currentUser
+    ? `${STRIPE_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(currentUser.email)}&client_reference_id=${currentUser.id}`
+    : STRIPE_PAYMENT_LINK;
   el.innerHTML = `<div class="kicker">${T.kicker}</div><h1>${T.pricingTitle}</h1>
   <div class="plans">
     <div class="plan">
@@ -483,7 +488,7 @@ function renderPrice(){
       <div style="font-size:12px;text-transform:uppercase;color:var(--green);">${T.premium}</div>
       <div class="plan-price">6,99$<span style="font-size:13px;color:#8A8578;">${T.perMonth}</span></div>
       <ul>${T.premFeat.map(f=>`<li>✓ ${f}</li>`).join("")}</ul>
-      <button class="ghost-btn" style="width:100%; color:#8A8578; cursor:not-allowed;" disabled>${T.comingSoon}</button>
+      <a href="${payUrl}" target="_blank" class="primary-btn" style="width:100%; display:block; text-align:center; text-decoration:none; box-sizing:border-box;">${T.goPremium}</a>
     </div>
   </div>`;
 }
